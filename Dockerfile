@@ -11,9 +11,8 @@ RUN apk add --no-cache \
 COPY ["package.json", "/"]
 
 RUN ["npm", "i"]
-RUN ["npx", "webpack", "build"]
 
-COPY ["src/server", "loadme"]
+COPY ["src/server", "pit"]
 COPY ["public", "public"]
 
-ENTRYPOINT ["node", "loadme/server.js"]
+ENTRYPOINT ["node", "pit/server.js"]
