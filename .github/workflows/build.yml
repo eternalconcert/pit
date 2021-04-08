@@ -13,11 +13,21 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Build docker image
+      - uses: actions/setup-node@v1
       - name: Install dependencies
         run: npm install
       - name: build
         run: npx webpack build
+
+      - name: Build docker image
+        run: |
+          docker build . --tag pit
+          docker tag pit pit:latest
+
+      - name: Log into GitHub Container Registry
+      # TODO: Create a PAT with `read:packages` and `write:packages` scopes and save it as an Actions secret `CR_PAT`
+        run: echo "${{ secrets.CR_PAT_PIT }}" | docker login https://ghcr.io -u ${{ github.actor }} --password-stdin
+
       - name: Push image to GitHub Container Registry
         run: |
           IMAGE_ID=ghcr.io/${{ github.repository_owner }}/pit
