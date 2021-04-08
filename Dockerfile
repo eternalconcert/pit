@@ -11,6 +11,7 @@ RUN apk add --no-cache \
 COPY ["package.json", "/"]
 
 RUN ["npm", "i"]
+RUN ["npx", "webpack", "build"]
 
 COPY ["src/server", "loadme"]
 COPY ["public", "public"]
