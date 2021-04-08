@@ -13,12 +13,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-node@v1
-      - name: Install dependencies
-        run: npm install
-      - name: build
-        run: npx webpack build
-
       - name: Build docker image
         run: |
           docker build . --tag pit
