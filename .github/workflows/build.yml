@@ -17,7 +17,7 @@ jobs:
       - name: Install dependencies
         run: npm install
       - name: build
-        run: npm webpack build
+        run: npx webpack build
 
       - name: Build docker image
         run: |
