@@ -9,7 +9,7 @@ const migrations = fs.readdirSync(__dirname + '/dbversions/').map(f => {
 });
 
 
-const db = new sqlite3.Database('db.sqlite');
+const db = new sqlite3.Database(process.env.DB_PATH);
 
 db.serialize(() => {
     db.run("CREATE TABLE IF NOT EXISTS migrations (name TEXT)");
