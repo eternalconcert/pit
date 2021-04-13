@@ -21,8 +21,18 @@ class DbObject {
     this.fieldnames = fieldnames;
   }
 
-  filter(filters) {
-    return `SELECT ${this.fieldnames.join(', ')} FROM ${this.tablename} WHERE ${filters.map(f=> `${f} = ?`)}`;
+  // all(callback) {
+  //   db.all(`SELECT ${this.fieldnames.join(', ')} FROM ${this.tablename}`, (_, rows) => callback(rows));
+  // }
+
+  filter(filters, callback) {
+    let keys = [];
+    let values = [];
+    Object.entries(filters).forEach(item => { keys.push(item[0]); values.push(item[1]) });
+
+    const stmt = db.prepare(`SELECT ${this.fieldnames.join(', ')} FROM ${this.tablename} WHERE ${keys.map(f=> `${f} = ?`)}`);
+    stmt.run(values).all((_, r) => callback(r));
+    stmt.finalize();
   }
 }
 
@@ -33,6 +43,7 @@ app.use(fileUpload());
 app.use(express.urlencoded({extended: true}));
 app.use(session({secret: 'test', resave: true, saveUninitialized: true, cookie: { maxAge: 60000 }}));
 
+// Frontend
 app.get('/', (req, res) => {
   if (req.session.user === 'user') {
     res.sendFile(path.join(__dirname, '../../public/index.html'));
@@ -41,15 +52,20 @@ app.get('/', (req, res) => {
   }
 })
 
+// app.get('/download/', (_, res) => {
+//   Files.all((arg) => res.json(arg));
+// });
+
 app.get('/download/:slug', (req, res) => {
-  const stmt = db.prepare(Files.filter(['slug']));
-  stmt.run(req.params.slug).each((_, r) => res.download(`${process.env.UPLOAD_PATH}${r.slug}`, r.name));
-  stmt.finalize();
+  const callback = (rows) => {
+    res.download(`${process.env.UPLOAD_PATH}${rows[0].slug}`, rows[0].name);
+  }
+  Files.filter({slug: req.params.slug}, callback);
 });
 
 app.get('/login', (_, res) => {
   res.sendFile(path.join(__dirname, '../../public/login.html'))
-})
+});
 
 app.post('/login', (req, res) => {
   if (req.body.password === process.env.PASSWORD) {
@@ -58,29 +74,35 @@ app.post('/login', (req, res) => {
   } else {
     res.redirect('/login')
   }
-})
+});
 
 // Api
 app.post('/api/files/', (req, res) => {
   if (!req.session.user) {
     res.sendStatus(403);
-    return;
+  } else {
+    const slug = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    req.files.file.mv(`${process.env.UPLOAD_PATH}${slug}`)
+
+    const stmt = db.prepare('INSERT INTO files (id, slug, name) VALUES (null, ? ,?)');
+    stmt.run(slug, req.files.file.name);
+    stmt.finalize();
+    res.json({ success: true, slug: slug });
   }
-
-  const slug = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-  req.files.file.mv(`${process.env.UPLOAD_PATH}${slug}`)
-
-  const stmt = db.prepare('INSERT INTO files (id, slug, name) VALUES (null, ? ,?)');
-  stmt.run(slug, req.files.file.name);
-  stmt.finalize();
-  res.json({ success: true, slug: slug });
 });
 
 // Static stuff
 app.use(express.static(path.join(__dirname, '../../public')));
 
 // Fallback route
-app.get('*', (_, res) => res.sendFile(path.join(__dirname, '../../public/index.html')));
+app.get('*', (req, res) => {
+  if (!req.session.user) {
+    res.redirect('/login');
+  } else {
+    res.sendFile(path.join(__dirname, '../../public/index.html'))
+
+  }
+});
 
 http.listen(3000, () => {
   console.log('listening on http://localhost:3000');

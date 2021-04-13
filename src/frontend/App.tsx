@@ -29,6 +29,8 @@ export const App: FC = () => {
           <>
             <a href={`download/${result.slug}`}>{`${location}download/${result.slug}`}</a>
             <br/>
+            <button onClick={ () => navigator.clipboard.writeText(`${location}download/${result.slug}`) } >Copy</button>
+            <br/>
             <a href={`/`}>{'Zurück'}</a>
           </>
         )
