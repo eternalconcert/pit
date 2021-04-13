@@ -14,20 +14,63 @@ if (!process.env.UPLOAD_PATH || !process.env.DB_PATH ) {
 const sqlite3 = require('sqlite3').verbose();
 const db = new sqlite3.Database(process.env.DB_PATH);
 
+
+class DbObject {
+  constructor(tablename, fieldnames) {
+    this.tablename = tablename;
+    this.fieldnames = fieldnames;
+  }
+
+  all = () => {
+    return `SELECT ${this.fieldnames.join(', ')} FROM ${this.tablename}`;
+  }
+
+  filter = (filter) => {
+    return `SELECT ${this.fieldnames.join(', ')} FROM ${this.tablename} WHERE ${filter.map(f=> `${f} = ?`)}`;
+  }
+}
+
+const Files = new DbObject('files', ['id', 'slug', 'name']);
+
+
 app.use(fileUpload());
 app.use(express.urlencoded({extended: true}));
 app.use(session({secret: 'test', resave: true, saveUninitialized: true, cookie: { maxAge: 60000 }}));
 
-// Static stuff
-app.use(express.static(path.join(__dirname, '../../public')));
+app.get('/', (req, res) => {
+  if (req.session.user === 'user') {
+    res.sendFile(path.join(__dirname, '../../public/index.html'));
+  } else {
+    res.redirect('/login')
+  }
+})
 
-// Api
 app.get('/download/:slug', (req, res) => {
-  const stmt = db.prepare('SELECT slug, name FROM files WHERE slug = ?');
+  const stmt = db.prepare(Files.filter(['slug']));
   stmt.run(req.params.slug).each((_, r) => res.download(`${process.env.UPLOAD_PATH}${r.slug}`, r.name));
   stmt.finalize();
 });
 
+app.get('/login', (_, res) => {
+  res.sendFile(path.join(__dirname, '../../public/login.html'))
+})
+
+app.post('/login', (req, res) => {
+  if (req.body.password === process.env.PASSWORD) {
+    req.session.user = 'user';
+    res.redirect('/')
+  } else {
+    res.redirect('/login')
+  }
+})
+
+app.get('/download/', (_, res) => {
+  const stmt = db.prepare(Files.all());
+  console.log(Files.filter({test: 1}))
+  stmt.run().all((_, r) => res.json(r));
+});
+
+// Api
 app.post('/api/files/', (req, res) => {
   if (!req.session.user) {
     res.sendStatus(403);
@@ -40,23 +83,11 @@ app.post('/api/files/', (req, res) => {
   const stmt = db.prepare('INSERT INTO files (id, slug, name) VALUES (null, ? ,?)');
   stmt.run(slug, req.files.file.name);
   stmt.finalize();
-
   res.json({ success: true, slug: slug });
 });
 
-app.get('/login', (_, res) => {
-  res.write("<html><form action='/login/' method='POST'><input name='password' type='password'/></form></html>");
-  res.end();
-})
-
-app.post('/login', (req, res) => {
-  if (req.body.password === process.env.PASSWORD) {
-    req.session.user = 'user';
-    res.redirect('/')
-  } else {
-    res.redirect('/login')
-  }
-})
+// Static stuff
+app.use(express.static(path.join(__dirname, '../../public')));
 
 // Fallback route
 app.get('*', (_, res) => res.sendFile(path.join(__dirname, '../../public/index.html')));
