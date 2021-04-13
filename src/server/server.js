@@ -21,12 +21,8 @@ class DbObject {
     this.fieldnames = fieldnames;
   }
 
-  all = () => {
-    return `SELECT ${this.fieldnames.join(', ')} FROM ${this.tablename}`;
-  }
-
-  filter = (filter) => {
-    return `SELECT ${this.fieldnames.join(', ')} FROM ${this.tablename} WHERE ${filter.map(f=> `${f} = ?`)}`;
+  filter(filters) {
+    return `SELECT ${this.fieldnames.join(', ')} FROM ${this.tablename} WHERE ${filters.map(f=> `${f} = ?`)}`;
   }
 }
 
@@ -63,12 +59,6 @@ app.post('/login', (req, res) => {
     res.redirect('/login')
   }
 })
-
-app.get('/download/', (_, res) => {
-  const stmt = db.prepare(Files.all());
-  console.log(Files.filter({test: 1}))
-  stmt.run().all((_, r) => res.json(r));
-});
 
 // Api
 app.post('/api/files/', (req, res) => {
